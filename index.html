@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MASTER ADMIN PRO</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        :root { --main: #00f2ff; --bg: #0a0b10; --card: #151921; --red: #ff4d4d; --green: #00ff88; }
+        body { background: var(--bg); color: #ccc; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+        
+        /* Menu Tab */
+        .tab-menu { display: flex; background: #1c222d; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #333; }
+        .tab-btn { flex: 1; padding: 15px; border: none; background: none; color: #888; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.3s; }
+        .tab-btn.active { color: var(--main); border-bottom: 3px solid var(--main); background: rgba(0,242,255,0.05); }
+        .badge { background: var(--red); color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; margin-left: 5px; }
+
+        .container { padding: 15px; display: none; }
+        .container.active { display: block; }
+
+        /* Form & Box */
+        .box { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #222; }
+        input, select, textarea { 
+            width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; 
+            border: 1px solid #333; background: #000; color: #fff; box-sizing: border-box; font-size: 15px;
+        }
+        button { 
+            padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 14px;
+        }
+        .btn-full { width: 100%; margin-top: 5px; }
+        .btn-blue { background: var(--main); color: #000; }
+        .btn-green { background: var(--green); color: #000; }
+        .btn-red { background: var(--red); color: #fff; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        td, th { padding: 12px 8px; border-bottom: 1px solid #222; text-align: left; }
+        th { color: var(--main); font-size: 12px; text-transform: uppercase; }
+
+        /* Request Card */
+        .req-card { background: #000; border: 1px solid #333; border-radius: 12px; padding: 15px; margin-bottom: 10px; border-left: 4px solid var(--green); }
+        .req-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .key-item { display: flex; justify-content: space-between; padding: 10px; background: #000; border-radius: 5px; margin-bottom: 5px; border: 1px solid #222; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+<div class="tab-menu">
+    <button class="tab-btn active" onclick="openTab(event, 'tab-bank')">DUYỆT NẠP <span class="badge" id="count-bank">0</span></button>
+    <button class="tab-btn" onclick="openTab(event, 'tab-user')">NGƯỜI DÙNG</button>
+    <button class="tab-btn" onclick="openTab(event, 'tab-key')">KHO KEY</button>
+</div>
+
+<div id="tab-bank" class="container active">
+    <div id="bank-list">
+        <p style="text-align:center; padding:50px; color:#444;">Đang trống yêu cầu...</p>
+    </div>
+    <button onclick="testReq()" style="background:#222; color:#555; margin-top:20px; width:100%; font-size:10px;">GỬI ĐƠN TEST (KIỂM TRA LỖI)</button>
+</div>
+
+<div id="tab-user" class="container">
+    <div class="box">
+        <h3 style="margin-top:0; color:var(--main)">CHỈNH SỐ DƯ TAY</h3>
+        <select id="sel-shop-u" onchange="loadUsers()">
+            <option value="users_shop1">Shop 1 (Duy)</option>
+            <option value="users_shop2">Shop 2 (Duy)</option>
+        </select>
+        <input type="text" id="edit-u" placeholder="Tên khách hàng...">
+        <input type="number" id="edit-val" placeholder="Số tiền (Cộng nhập số dương, Trừ nhập số âm)...">
+        <button class="btn-blue btn-full" onclick="adjBal()">XÁC NHẬN CẬP NHẬT</button>
+    </div>
+    <div class="box">
+        <h3 style="color:var(--main)">DANH SÁCH USER</h3>
+        <table>
+            <thead><tr><th>Tên</th><th>Số dư</th><th>Hành động</th></tr></thead>
+            <tbody id="list-users"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="tab-key" class="container">
+    <div class="box">
+        <h3 style="margin-top:0; color:var(--main)">UP KEY MỚI</h3>
+        <select id="sel-key" onchange="loadKeys()">
+            <optgroup label="SHOP 1">
+                <option value="shop1/ngay">S1 - Ngày</option>
+                <option value="shop1/tuan">S1 - Tuần</option>
+                <option value="shop1/thang">S1 - Tháng</option>
+            </optgroup>
+            <optgroup label="SHOP 2">
+                <option value="shop2/tuan">S2 - Tuần</option>
+                <option value="shop2/thang">S2 - Tháng</option>
+            </optgroup>
+        </select>
+        <textarea id="up-keys" placeholder="Dán danh sách key (mỗi dòng 1 key)..." style="height:100px;"></textarea>
+        <button class="btn-green btn-full" onclick="pushKeys()">XÁC NHẬN UP KEY</button>
+        <button class="btn-red btn-full" style="background:#333; font-size:11px;" onclick="clearKeys()">XÓA SẠCH GÓI NÀY</button>
+    </div>
+    <div class="box">
+        <h3 style="color:var(--main)">CHI TIẾT KHO</h3>
+        <div id="list-keys"></div>
+    </div>
+</div>
+
+<script>
+    const config = {
+        apiKey: "AIzaSyBk6R1TDZeAxh37JQLgL_6Wl0v8m8Sg0",
+        authDomain: "shopctv-61f96.firebaseapp.com",
+        databaseURL: "https://shopctv-61f96-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        projectId: "shopctv-61f96",
+        appId: "1:610663182342:web:83e255ec7921609395f190"
+    };
+    firebase.initializeApp(config);
+    const db = firebase.database();
+
+    // Chuyển Tab
+    function openTab(evt, tabName) {
+        let i, container, tabBtn;
+        container = document.getElementsByClassName("container");
+        for (i = 0; i < container.length; i++) container[i].classList.remove("active");
+        tabBtn = document.getElementsByClassName("tab-btn");
+        for (i = 0; i < tabBtn.length; i++) tabBtn[i].classList.remove("active");
+        document.getElementById(tabName).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+
+    // 1. Duyệt đơn nạp
+    db.ref('bank_requests').on('value', s => {
+        const area = document.getElementById('bank-list');
+        const badge = document.getElementById('count-bank');
+        area.innerHTML = "";
+        const data = s.val();
+        if(!data) { 
+            area.innerHTML = "<p style='text-align:center; padding:50px; color:#444;'>Không có đơn nào chờ duyệt.</p>";
+            badge.innerText = "0"; badge.style.display = "none";
+            return; 
+        }
+        const keys = Object.keys(data);
+        badge.innerText = keys.length; badge.style.display = "inline";
+        keys.forEach(k => {
+            const r = data[k];
+            area.innerHTML += `
+                <div class="req-card">
+                    <div class="req-row"><b style="font-size:16px">${r.user}</b> <b style="color:var(--green); font-size:18px">+${Number(r.amount).toLocaleString()}đ</b></div>
+                    <div style="color:#666; margin-bottom:15px; font-size:12px">Nội dung: ${r.content} | Shop: ${r.shop === 'users_shop1' ? '1' : '2'}</div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-green" style="flex:1" onclick="approve('${k}','${r.shop}','${r.user}',${r.amount})">DUYỆT NẠP</button>
+                        <button class="btn-red" style="flex:1" onclick="deny('${k}')">XÓA ĐƠN</button>
+                    </div>
+                </div>`;
+        });
+    });
+
+    // 2. Load User
+    function loadUsers() {
+        const path = document.getElementById('sel-shop-u').value;
+        db.ref(path).on('value', s => {
+            const b = document.getElementById('list-users'); b.innerHTML = "";
+            const d = s.val();
+            for(let u in d) b.innerHTML += `<tr><td>${u}</td><td style="color:#fc0; font-weight:bold">${(d[u].balance||0).toLocaleString()}đ</td><td><button onclick="delU('${u}')" style="background:none; color:red; padding:0; font-size:12px;">Xóa</button></td></tr>`;
+        });
+    }
+
+    // 3. Load Key
+    function loadKeys() {
+        const path = document.getElementById('sel-key').value;
+        db.ref('keys/'+path).on('value', s => {
+            const area = document.getElementById('list-keys'); area.innerHTML = "";
+            const data = s.val();
+            if(data) Object.keys(data).forEach(id => {
+                area.innerHTML += `<div class="key-item"><span>${data[id]}</span><span onclick="delK('${id}')" style="color:red; cursor:pointer; font-weight:bold">XÓA</span></div>`;
+            }); else area.innerHTML = "Trống...";
+        });
+    }
+
+    // Logic xử lý
+    function testReq() { db.ref('bank_requests').push({ user: 'KhachTest', amount: 20000, content: 'Test don', shop: 'users_shop1' }); }
+    function approve(id, shop, user, amt) {
+        db.ref(shop+'/'+user+'/balance').once('value', s => {
+            db.ref(shop+'/'+user+'/balance').set((s.val()||0)+amt);
+            db.ref('bank_requests/'+id).remove();
+            alert("Đã cộng tiền cho " + user);
+        });
+    }
+    function deny(id) { if(confirm("Xóa đơn này?")) db.ref('bank_requests/'+id).remove(); }
+    function adjBal() {
+        const u = document.getElementById('edit-u').value.trim().toLowerCase();
+        const v = parseInt(document.getElementById('edit-val').value);
+        const shop = document.getElementById('sel-shop-u').value;
+        if(u && !isNaN(v)) {
+            db.ref(shop+'/'+u+'/balance').once('value', s => { db.ref(shop+'/'+u+'/balance').set((s.val()||0)+v); alert("Thành công!"); });
+        }
+    }
+    function pushKeys() {
+        const path = document.getElementById('sel-key').value;
+        const list = document.getElementById('up-keys').value.trim().split('\n');
+        list.forEach(k => { if(k.trim()) db.ref('keys/'+path).push(k.trim()); });
+        document.getElementById('up-keys').value = ""; alert("Đã up xong!");
+    }
+    function delU(u) { if(confirm("Xóa user?")) db.ref(document.getElementById('sel-shop-u').value+'/'+u).remove(); }
+    function delK(id) { db.ref('keys/'+document.getElementById('sel-key').value+'/'+id).remove(); }
+    function clearKeys() { if(confirm("Xóa sạch gói?")) db.ref('keys/'+document.getElementById('sel-key').value).remove(); }
+
+    loadUsers(); loadKeys();
+</script>
+</body>
+</html>
